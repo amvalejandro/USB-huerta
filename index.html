@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BioFlujo Daphnia · USB</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        usb: {
+          blue: '#003C71',   /* Azul institucional USB */
+          dark: '#001F3F',
+          gold: '#FDB913',   /* Dorado USB */
+          sky:  '#0066CC',
+          green:'#10B981',   /* Acento eco */
+          cream:'#F8FAFC'
+        }
+      }
+    }
+  }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  html,body{font-family:Inter,system-ui,-apple-system,sans-serif;}
+  .gradient-bg{background:linear-gradient(135deg,#001F3F 0%,#003C71 35%,#0e7490 70%,#10B981 100%);}
+  .gradient-card{background:linear-gradient(135deg,#003C71 0%,#0066CC 60%,#10B981 120%);}
+  .fade-in{animation:fadeIn .4s ease both;}
+  .slide-up{animation:slideUp .5s cubic-bezier(.22,.9,.35,1) both;}
+  .pulse-glow{animation:pulseGlow 2s ease-in-out infinite;}
+  .float{animation:float 3s ease-in-out infinite;}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes pulseGlow{0%,100%{box-shadow:0 0 30px rgba(253,185,19,.4)}50%{box-shadow:0 0 60px rgba(253,185,19,.85)}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  .particle{position:absolute;width:8px;height:8px;border-radius:50%;background:#FDB913;opacity:0;animation:rise 3.5s linear infinite;}
+  @keyframes rise{0%{opacity:0;transform:translateY(100vh) scale(0)}10%{opacity:1}90%{opacity:1}100%{opacity:0;transform:translateY(-40px) scale(1.6)}}
+  .scrollbar-thin::-webkit-scrollbar{width:6px;height:6px;}
+  .scrollbar-thin::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px;}
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb{background:#475569;}
+  .nav-item{transition:all .2s ease;}
+  .nav-item:hover{transform:translateX(4px);}
+  .nav-item.active{background:linear-gradient(90deg,rgba(0,60,113,.14),rgba(16,185,129,.10));border-left:4px solid #10B981;}
+  .dark .nav-item.active{background:linear-gradient(90deg,rgba(0,60,113,.55),rgba(16,185,129,.25));}
+  .card-hover{transition:all .3s;}
+  .card-hover:hover{transform:translateY(-4px);box-shadow:0 20px 40px -15px rgba(0,60,113,.35);}
+  .chat-bubble{animation:slideUp .25s ease both;}
+  .step-active{background:linear-gradient(135deg,#003C71,#10B981);color:#fff;}
+</style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors min-h-screen">
+
+<!-- CINEMATIC -->
+<div id="cinematic" class="hidden fixed inset-0 z-[200] gradient-bg flex items-center justify-center overflow-hidden">
+  <div id="cinematic-particles" class="absolute inset-0 pointer-events-none"></div>
+  <div class="relative text-center px-6 fade-in">
+    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSP3kmbLUZGm6U0msR_OWKIpsm714exxukXaGvRAFN3GA&s=10"
+         onerror="this.style.display='none'" alt="USB" class="h-16 mx-auto mb-6 bg-white/90 p-2 rounded-xl shadow-2xl float">
+    <div class="text-6xl mb-4 pulse-glow inline-block">🦐</div>
+    <h1 class="text-4xl md:text-6xl font-black text-white tracking-tight mb-3">BioFlujo Daphnia</h1>
+    <p class="text-white/80 text-lg mb-8">Universidad San Buenaventura · Ingeniería Mecatrónica</p>
+    <div id="cinematic-name" class="text-2xl md:text-3xl font-bold text-usb-gold mb-2"></div>
+    <div id="cinematic-role" class="text-white/90 mb-10"></div>
+    <button onclick="startTutorial()" class="bg-usb-gold hover:bg-yellow-400 text-usb-dark font-bold px-10 py-4 rounded-2xl shadow-2xl transition text-lg">
+      🚀 Comenzar el recorrido
+    </button>
+  </div>
+</div>
+
+<!-- TUTORIAL -->
+<div id="tutorial" class="hidden fixed inset-0 z-[190] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-xl w-full p-8 slide-up relative overflow-hidden">
+    <div class="relative">
+      <div class="flex justify-between items-start mb-6">
+        <span id="tut-step" class="text-xs font-bold text-usb-blue dark:text-usb-gold bg-blue-50 dark:bg-slate-700 px-3 py-1 rounded-full">1 / 5</span>
+        <button onclick="skipTutorial()" class="text-slate-400 hover:text-slate-700 dark:hover:text-white text-sm">Saltar ✕</button>
+      </div>
+      <div id="tut-icon" class="text-6xl mb-4 float"></div>
+      <h2 id="tut-title" class="text-2xl font-bold mb-3"></h2>
+      <p id="tut-body" class="text-slate-600 dark:text-slate-300 leading-relaxed mb-8"></p>
+      <div class="flex justify-between items-center">
+        <div id="tut-dots" class="flex gap-2"></div>
+        <button onclick="nextTutorialSlide()" class="bg-usb-blue hover:bg-usb-dark text-white px-6 py-2.5 rounded-xl font-semibold transition">Siguiente →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="view-login" class="fixed inset-0 z-[100] gradient-bg overflow-y-auto">
+  <div class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg p-8 fade-in my-8">
+      <div class="text-center mb-6">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSP3kmbLUZGm6U0msR_OWKIpsm714exxukXaGvRAFN3GA&s=10"
+             onerror="this.style.display='none'" alt="USB" class="h-12 mx-auto mb-3">
+        <div class="text-4xl mb-2">🦐</div>
+        <h2 class="text-2xl font-bold">BioFlujo Daphnia</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Acceso Institucional · Universidad San Buenaventura</p>
+      </div>
+
+      <div class="flex items-center justify-center gap-2 mb-6">
+        <div id="log-step-1" class="step-active w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold">1</div>
+        <div class="w-8 h-1 bg-slate-200 dark:bg-slate-600 rounded"></div>
+        <div id="log-step-2" class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-xs font-bold text-slate-500">2</div>
+        <div class="w-8 h-1 bg-slate-200 dark:bg-slate-600 rounded"></div>
+        <div id="log-step-3" class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-xs font-bold text-slate-500">3</div>
+      </div>
+
+      <div id="login-step-1" class="space-y-4">
+        <div class="flex flex-col items-center">
+          <label for="login-photo" class="cursor-pointer group relative">
+            <div class="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-700 border-4 border-dashed border-slate-300 dark:border-slate-500 flex items-center justify-center overflow-hidden group-hover:border-usb-gold transition">
+              <img id="login-photo-preview" class="hidden w-full h-full object-cover">
+              <span id="login-photo-icon" class="text-3xl">📷</span>
+            </div>
+            <span class="absolute -bottom-1 -right-1 bg-usb-blue text-white rounded-full w-8 h-8 flex items-center justify-center text-sm shadow-lg">+</span>
+          </label>
+          <input type="file" id="login-photo" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)">
+          <p class="text-xs text-slate-400 mt-2">Sube tu foto de perfil</p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Nombre completo</label>
+          <input id="login-nombre" type="text" placeholder="Ej. Juan Pérez" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-4 py-3 outline-none focus:border-usb-blue transition">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Correo institucional</label>
+          <input id="login-email" type="email" placeholder="usuario@usb.edu.co" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-4 py-3 outline-none focus:border-usb-blue transition">
+          <p id="email-error" class="hidden text-xs text-red-500 mt-1">⚠️ Debe ser un correo @usb.edu.co</p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Rol en el proyecto</label>
+          <select id="login-rol" onchange="updateRoleHint()" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-4 py-3 outline-none focus:border-usb-blue transition">
+            <option value="estudiante">🎓 Estudiante (opera y registra)</option>
+            <option value="tutor">👨‍🏫 Tutor / Director (acceso total y reportes)</option>
+            <option value="invitado">👁️ Invitado (solo lectura y guía)</option>
+          </select>
+          <p id="role-hint" class="text-xs text-slate-500 mt-1">Podrás crear ciclos, llenar checklists y ver tu dashboard.</p>
+        </div>
+        <button onclick="goLoginStep2()" class="w-full bg-usb-blue hover:bg-usb-dark text-white py-3 rounded-xl font-bold transition shadow-lg">Continuar →</button>
+      </div>
+
+      <div id="login-step-2" class="hidden">
+        <h3 class="font-bold text-lg mb-1">Elige un grupo de trabajo</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Como en Instagram o Classroom, aquí convivirás con otros estudiantes.</p>
+        <div id="login-groups" class="grid grid-cols-2 gap-2 mb-4 max-h-72 overflow-y-auto scrollbar-thin pr-1"></div>
+        <div class="flex gap-2">
+          <button onclick="goLoginStep(1)" class="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 py-3 rounded-xl font-semibold transition">← Atrás</button>
+          <button onclick="goLoginStep3()" class="flex-1 bg-usb-blue hover:bg-usb-dark text-white py-3 rounded-xl font-bold transition">Continuar →</button>
+        </div>
+      </div>
+
+      <div id="login-step-3" class="hidden">
+        <h3 class="font-bold text-lg mb-1">Estado actual de la huerta</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">¿Cómo se encuentra la instalación física hoy?</p>
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <button onclick="selectEstadoHuerta('vacia', this)" class="estado-btn border-2 border-slate-200 dark:border-slate-600 rounded-xl py-4 text-xs font-semibold hover:border-emerald-400 transition text-center"><div class="text-2xl mb-1">🪴</div>Vacía / Limpia</button>
+          <button onclick="selectEstadoHuerta('mantenimiento', this)" class="estado-btn border-2 border-slate-200 dark:border-slate-600 rounded-xl py-4 text-xs font-semibold hover:border-emerald-400 transition text-center"><div class="text-2xl mb-1">🔧</div>En Mantenimiento</button>
+          <button onclick="selectEstadoHuerta('activa', this)" class="estado-btn border-2 border-slate-200 dark:border-slate-600 rounded-xl py-4 text-xs font-semibold hover:border-emerald-400 transition text-center"><div class="text-2xl mb-1">🌿</div>Iniciando Ciclo</button>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="goLoginStep(2)" class="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 py-3 rounded-xl font-semibold transition">← Atrás</button>
+          <button onclick="finalizeLogin()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold transition shadow-lg">🚀 Entrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden min-h-screen flex">
+  <aside id="sidebar" class="hidden md:flex flex-col w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 min-h-screen sticky top-0">
+    <div class="p-4 border-b border-slate-200 dark:border-slate-700">
+      <div class="flex items-center gap-2">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSP3kmbLUZGm6U0msR_OWKIpsm714exxukXaGvRAFN3GA&s=10"
+             onerror="this.style.display='none'" alt="USB" class="h-8">
+        <div>
+          <p class="font-bold text-sm leading-tight">BioFlujo Daphnia</p>
+          <p class="text-[10px] text-slate-500">USB · Mecatrónica</p>
+        </div>
+      </div>
+    </div>
+    <nav id="nav" class="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-thin"></nav>
+    <div class="p-3 border-t border-slate-200 dark:border-slate-700">
+      <button onclick="toggleTheme()" class="w-full text-left text-sm px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 transition">
+        <span id="theme-icon">🌙</span><span id="theme-label">Modo oscuro</span>
+      </button>
+      <button onclick="replayTutorial()" class="w-full text-left text-sm px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 transition">🎬 Ver tutorial</button>
+    </div>
+  </aside>
+
+  <div class="flex-1 flex flex-col min-w-0">
+    <header class="gradient-card text-white px-4 md:px-6 py-3 flex items-center justify-between shadow-lg sticky top-0 z-30">
+      <div class="flex items-center gap-2 min-w-0">
+        <button onclick="toggleSidebarMobile()" class="md:hidden text-2xl">☰</button>
+        <div class="truncate">
+          <h1 id="header-title" class="font-bold text-base md:text-lg truncate">Dashboard</h1>
+          <p class="text-[11px] text-white/70" id="header-subtitle">Panel general</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="toggleTheme()" class="md:hidden text-xl">🌗</button>
+        <div class="text-right hidden sm:block">
+          <p id="header-nombre" class="text-sm font-semibold leading-tight truncate max-w-[140px]">Usuario</p>
+          <p id="header-rol" class="text-[10px] text-white/70 capitalize">Rol</p>
+        </div>
+        <div id="header-avatar" class="w-9 h-9 rounded-full bg-white/25 flex items-center justify-center font-bold text-sm overflow-hidden border-2 border-white/40">U</div>
+        <button onclick="logout()" class="text-xs bg-white/10 hover:bg-white/25 px-3 py-1.5 rounded-full transition" title="Cerrar sesión">Salir</button>
+      </div>
+    </header>
+
+    <main id="main" class="flex-1 p-4 md:p-6 max-w-6xl w-full mx-auto"></main>
+  </div>
+
+  <div id="mobile-sidebar" class="hidden fixed inset-0 z-40 bg-black/50 md:hidden" onclick="toggleSidebarMobile()">
+    <aside class="w-64 bg-white dark:bg-slate-800 h-full p-3 overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="flex items-center gap-2 p-2 mb-2 border-b border-slate-200 dark:border-slate-700 pb-3">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSP3kmbLUZGm6U0msR_OWKIpsm714exxukXaGvRAFN3GA&s=10" onerror="this.style.display='none'" alt="USB" class="h-7">
+        <p class="font-bold text-sm">BioFlujo Daphnia</p>
+      </div>
+      <nav id="nav-mobile" class="space-y-1"></nav>
+    </aside>
+  </div>
+</div>
+
+<div id="toasts" class="fixed bottom-4 right-4 z-[150] space-y-2"></div>
+
+<script>
+/* ============================================================
+   CONSTANTS
+============================================================ */
+const CATALOGO = [
+  {id:'lechuga_crespa', n:'Lechuga Crespa', e:'🥬', pulgas:250, umd:0.025, ec:1.5, ciclo:40, fase:{1:0.20,2:0.60,3:0.60,4:1.00,5:1.00}},
+  {id:'lechuga_romana', n:'Lechuga Romana', e:'🥗', pulgas:260, umd:0.026, ec:1.5, ciclo:42, fase:{1:0.20,2:0.60,3:0.60,4:1.00,5:1.00}},
+  {id:'espinaca',       n:'Espinaca',       e:'🌱', pulgas:220, umd:0.022, ec:1.6, ciclo:45, fase:{1:0.20,2:0.55,3:0.60,4:1.00,5:1.00}},
+  {id:'albahaca',       n:'Albahaca',       e:'🌿', pulgas:180, umd:0.018, ec:1.4, ciclo:50, fase:{1:0.15,2:0.50,3:0.60,4:0.90,5:1.00}},
+  {id:'rucula',         n:'Rúcula',         e:'🍃', pulgas:200, umd:0.020, ec:1.5, ciclo:35, fase:{1:0.20,2:0.60,3:0.60,4:1.00,5:1.00}},
+  {id:'acelga',         n:'Acelga',         e:'🥬', pulgas:280, umd:0.028, ec:1.7, ciclo:50, fase:{1:0.20,2:0.60,3:0.60,4:1.00,5:1.00}},
+  {id:'cilantro',       n:'Cilantro',       e:'🌾', pulgas:150, umd:0.015, ec:1.3, ciclo:40, fase:{1:0.20,2:0.60,3:0.60,4:1.00,5:1.00}},
+  {id:'menta',          n:'Menta',          e:'🌿', pulgas:160, umd:0.016, ec:1.4, ciclo:55, fase:{1:0.15,2:0.50,3:0.60,4:0.90,5:1.00}},
+  {id:'fresa',          n:'Fresa',          e:'🍓', pulgas:300, umd:0.030, ec:1.6, ciclo:70, fase:{1:0.15,2:0.50,3:0.60,4:0.90,5:1.00}}
+];
+
+const GRUPOS = [
+  {id:'mantenimiento', nombre:'Mantenimiento',         icono:'🔧', color:'from-blue-500 to-blue-700',    desc:'Filtros, bombas y hardware', miembros:8},
+  {id:'daphnias',      nombre:'Cuidado de Daphnias',   icono:'🦐', color:'from-rose-500 to-pink-600',    desc:'Alimentación y cosecha',    miembros:12},
+  {id:'plantas',       nombre:'Cultivo de Plantas',    icono:'🌿', color:'from-emerald-500 to-green-700',desc:'Hidroponía y nutrición',    miembros:15},
+  {id:'registros',     nombre:'Registros Técnicos',    icono:'📊', color:'from-amber-500 to-orange-600', desc:'Checklist y sensores',      miembros:6},
+  {id:'investigacion', nombre:'Investigación & Datos', icono:'🔬', color:'from-violet-500 to-purple-700',desc:'Análisis y experimentos',   miembros:5},
+  {id:'difusion',      nombre:'Diseño y Difusión',     icono:'🎨', color:'from-cyan-500 to-teal-600',    desc:'Comunicación y redes',      miembros:4}
+];
+
+/* ============================================================
+   STATE + PERSISTENCE (CON MERGE SEGURO)
+============================================================ */
+const DEFAULT_STATE = {
+  usuario: null,
+  darkMode: false,
+  tutorialVisto: false,
+  currentView: 'feed',
+  cicloActivo: {
+    activo: false,
+    semana: 1,
+    poblacionInicial: 0,
+    poblacionActual: 0,
+    umdInicial: 0,
+    capacidadCarga: 5000,
+    plantas: [],
+    fechaInicio: null,
+    ecIdeal: 1.5
+  },
+  historialSemanal: [],
+  chats: {},
+  posts: [
+    {id:1, autor:'María Gómez', rol:'Estudiante', avatar:'M', tiempo:'hace 2h', texto:'¡Semana 3 completada! Las lechugas van hermosas 🌱 La daphnia está en 2,400 individuos.', likes:12, liked:false, emoji:'🌱'},
+    {id:2, autor:'Prof. Andrés', rol:'Tutor', avatar:'A', tiempo:'hace 5h', texto:'Recordatorio: revisar el filtro de 100 micras cada 7 días. La obstrucción reduce el flujo y baja el EC.', likes:8, liked:false, emoji:'🔧'},
+    {id:3, autor:'Carlos Ruiz', rol:'Estudiante', avatar:'C', tiempo:'1d', texto:'Hoy coseché 1,200 daphnias y preparé las bolsitas de té para el bypass. ¡El sistema quedó en verde! 🟢', likes:5, liked:false, emoji:'🦐'}
+  ]
+};
+
+/* Carga con merge profundo: garantiza que TODAS las keys existan */
+function loadStateSafe(){
+  const raw = (()=>{ try{ return localStorage.getItem('bioflujoState'); }catch(e){ return null; } })();
+  const defaults = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  if(!raw) return defaults;
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch(e){ return defaults; }
+  if(!parsed || typeof parsed !== 'object') return defaults;
+  // Merge top-level
+  const merged = { ...defaults, ...parsed };
+  // Garantizar subestructuras
+  merged.chats = (merged.chats && typeof merged.chats === 'object') ? merged.chats : {};
+  merged.posts = Array.isArray(merged.posts) && merged.posts.length ? merged.posts : defaults.posts;
+  merged.historialSemanal = Array.isArray(merged.historialSemanal) ? merged.historialSemanal : [];
+  merged.cicloActivo = { ...defaults.cicloActivo, ...(merged.cicloActivo || {}) };
+  if(merged.cicloActivo.activo && !merged.cicloActivo.poblacionActual){
+    merged.cicloActivo.poblacionActual = merged.cicloActivo.poblacionInicial;
+  }
+  return merged;
+}
+
+function saveState(){
+  try{ localStorage.setItem('bioflujoState', JSON.stringify(state)); }
+  catch(e){ console.warn('No se pudo guardar', e); }
+}
+
+let state = loadStateSafe();
+let chartInstances = {};
+
+/* ============================================================
+   UTILS
+============================================================ */
+const $ = (id) => document.getElementById(id);
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toast(msg, type='info'){
+  const colors = {info:'bg-blue-500',ok:'bg-emerald-500',warn:'bg-amber-500',err:'bg-red-500'};
+  const el = document.createElement('div');
+  el.className = `${colors[type]||colors.info} text-white px-4 py-2.5 rounded-xl shadow-2xl text-sm fade-in max-w-xs`;
+  el.textContent = msg;
+  const t = $('toasts'); if(!t) return;
+  t.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3200);
+}
+
+/* ============================================================
+   LOGIN
+============================================================ */
+let loginPhotoData = null;
+let estadoHuertaSeleccionada = null;
+let grupoSeleccionado = null;
+
+function handlePhotoUpload(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = 200; c.height = 200;
+      const ctx = c.getContext('2d');
+      const m = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width-m)/2, (img.height-m)/2, m, m, 0, 0, 200, 200);
+      loginPhotoData = c.toDataURL('image/jpeg', 0.82);
+      const prev = $('login-photo-preview');
+      prev.src = loginPhotoData; prev.classList.remove('hidden');
+      $('login-photo-icon').classList.add('hidden');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateRoleHint(){
+  const rol = $('login-rol').value;
+  const h = $('role-hint');
+  if(rol==='estudiante') h.textContent = 'Podrás crear ciclos, llenar checklists y ver tu dashboard.';
+  else if(rol==='tutor') h.textContent = 'Acceso total: revisa diagnósticos de todos y exporta reportes.';
+  else h.textContent = 'Solo podrás ver el dashboard y la guía. Sin modificar datos.';
+}
+
+function goLoginStep(n){
+  [1,2,3].forEach(i=>{
+    const step = $('login-step-'+i); if(step) step.classList.toggle('hidden', i!==n);
+    const s = $('log-step-'+i); if(!s) return;
+    if(i<=n) s.className='w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold step-active';
+    else s.className='w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-xs font-bold text-slate-500';
+  });
+}
+
+function goLoginStep2(){
+  const nombre = $('login-nombre').value.trim();
+  const email = $('login-email').value.trim();
+  const rol = $('login-rol').value;
+  if(!nombre){ toast('Ingresa tu nombre completo','warn'); return; }
+  if(!email.endsWith('@usb.edu.co')){ $('email-error').classList.remove('hidden'); toast('Correo debe ser @usb.edu.co','err'); return; }
+  $('email-error').classList.add('hidden');
+  if(rol==='estudiante'){
+    $('login-groups').innerHTML = GRUPOS.map(g=>`
+      <button onclick="pickGroup('${g.id}', this)" class="grupo-btn border-2 border-slate-200 dark:border-slate-600 rounded-xl p-3 text-left hover:border-usb-blue transition">
+        <div class="text-2xl mb-1">${g.icono}</div>
+        <p class="text-xs font-bold leading-tight">${esc(g.nombre)}</p>
+        <p class="text-[10px] text-slate-500">${g.miembros} miembros</p>
+      </button>`).join('');
+    goLoginStep(2);
+  } else {
+    grupoSeleccionado = 'todos';
+    goLoginStep(3);
+  }
+}
+
+function pickGroup(gid, btn){
+  grupoSeleccionado = gid;
+  document.querySelectorAll('.grupo-btn').forEach(b=>b.classList.remove('border-usb-blue','bg-blue-50','dark:bg-slate-700'));
+  btn.classList.add('border-usb-blue','bg-blue-50','dark:bg-slate-700');
+}
+
+function goLoginStep3(){
+  if($('login-rol').value==='estudiante' && !grupoSeleccionado){ toast('Elige un grupo','warn'); return; }
+  goLoginStep(3);
+}
+
+function selectEstadoHuerta(estado, btn){
+  estadoHuertaSeleccionada = estado;
+  document.querySelectorAll('.estado-btn').forEach(b=>b.classList.remove('border-emerald-500','bg-emerald-50','dark:bg-slate-700'));
+  btn.classList.add('border-emerald-500','bg-emerald-50','dark:bg-slate-700');
+}
+
+function finalizeLogin(){
+  if(!estadoHuertaSeleccionada){ toast('Selecciona el estado de la huerta','warn'); return; }
+  state.usuario = {
+    nombre: $('login-nombre').value.trim(),
+    email: $('login-email').value.trim(),
+    rol: $('login-rol').value,
+    foto: loginPhotoData,
+    grupo: grupoSeleccionado || 'todos',
+    estadoHuerta: estadoHuertaSeleccionada
+  };
+  saveState();
+  $('view-login').classList.add('hidden');
+  showCinematic();
+}
+
+function showCinematic(){
+  const c = $('cinematic'); if(!c) return;
+  c.classList.remove('hidden');
+  const p = $('cinematic-particles'); p.innerHTML='';
+  for(let i=0;i<30;i++){
+    const s = document.createElement('span');
+    s.className='particle';
+    s.style.left = Math.random()*100+'%';
+    s.style.animationDelay = Math.random()*3+'s';
+    s.style.background = ['#FDB913','#10B981','#0066CC','#fff'][Math.floor(Math.random()*4)];
+    p.appendChild(s);
+  }
+  $('cinematic-name').textContent = '¡Bienvenido/a, ' + state.usuario.nombre.split(' ')[0] + '!';
+  $('cinematic-role').innerHTML = `Rol: <b class="capitalize">${state.usuario.rol}</b> · Huerta: <b>${state.usuario.estadoHuerta}</b>`;
+}
+
+/* ============================================================
+   TUTORIAL
+============================================================ */
+const TUTORIALS = {
+  estudiante: [
+    {icon:'🌱', title:'Tu invernadero digital', body:'BioFlujo Daphnia conecta el huerto físico con tu celular. Monitoreamos daphnias, plantas y sensores desde aquí.'},
+    {icon:'⚙️', title:'Configura tu ciclo', body:'En "Setup" cuentas las daphnias (muestreo por alícuota), eliges plantas y validamos si hay suficientes pulgas para tu cultivo.'},
+    {icon:'📋', title:'Checklist semanal', body:'Cada semana registras datos: EC, temperatura, población, y cuántas daphnias cosechaste. Con eso el sistema calcula todo.'},
+    {icon:'📊', title:'Lee tu diagnóstico', body:'Verás tu Índice de Equilibrio (verde/amarillo/rojo), población estimada con modelo logístico, y tareas para la próxima semana.'},
+    {icon:'💬', title:'Comunidad y Bot', body:'Habla con otros estudiantes en los grupos, simula el cuidado de la máquina del huerto y pregunta a DafniaBot con opciones guiadas. 🦐'}
+  ],
+  tutor: [
+    {icon:'👨‍🏫', title:'Panel del tutor', body:'Tienes acceso completo: ciclos, diagnósticos, grupos y exportación de reportes mensuales de todos los estudiantes.'},
+    {icon:'🔬', title:'Revisa diagnósticos', body:'En el Dashboard puedes auditar tendencias de EC, temperatura y población de cualquier ciclo activo.'},
+    {icon:'📤', title:'Exporta reportes', body:'Desde el Historial puedes descargar un CSV con el historial completo del ciclo activo.'},
+    {icon:'🤝', title:'Comunidad', body:'Modera los grupos y comparte buenas prácticas de cultivo con tus estudiantes.'}
+  ],
+  invitado: [
+    {icon:'👁️', title:'Modo lectura', body:'Como invitado solo puedes consultar el dashboard, la guía y la comunidad. No puedes crear ciclos ni modificar datos.'},
+    {icon:'📊', title:'Explora el Dashboard', body:'Observa los KPIs del cultivo: población estimada, Índice de Equilibrio y tendencias.'},
+    {icon:'📖', title:'Consulta la Guía', body:'Aprende cómo funciona el sistema, cómo contar daphnias y cómo interpretar el semáforo del cultivo.'}
+  ]
+};
+
+let tutIndex = 0, tutSlides = [];
+function startTutorial(){
+  $('cinematic').classList.add('hidden');
+  tutSlides = TUTORIALS[state.usuario?.rol] || TUTORIALS.invitado;
+  tutIndex = 0;
+  $('tutorial').classList.remove('hidden');
+  renderTutorialSlide();
+}
+function renderTutorialSlide(){
+  const s = tutSlides[tutIndex];
+  $('tut-step').textContent = (tutIndex+1) + ' / ' + tutSlides.length;
+  $('tut-icon').textContent = s.icon;
+  $('tut-title').textContent = s.title;
+  $('tut-body').textContent = s.body;
+  $('tut-dots').innerHTML = tutSlides.map((_,i)=>`<div class="w-2 h-2 rounded-full ${i===tutIndex?'bg-usb-blue w-6':'bg-slate-300'} transition-all"></div>`).join('');
+  const btn = document.querySelector('#tutorial button[onclick="nextTutorialSlide()"]');
+  if(btn) btn.textContent = tutIndex === tutSlides.length-1 ? 'Finalizar 🎉' : 'Siguiente →';
+}
+function nextTutorialSlide(){
+  if(tutIndex >= tutSlides.length-1){ skipTutorial(); return; }
+  tutIndex++; renderTutorialSlide();
+}
+function skipTutorial(){
+  $('tutorial').classList.add('hidden');
+  state.tutorialVisto = true; saveState();
+  bootApp();
+}
+function replayTutorial(){
+  tutSlides = TUTORIALS[state.usuario?.rol] || TUTORIALS.invitado;
+  tutIndex = 0;
+  $('tutorial').classList.remove('hidden');
+  renderTutorialSlide();
+}
+
+/* ============================================================
+   BOOT & THEME
+============================================================ */
+function bootApp(){
+  if(!state.usuario){ $('view-login').classList.remove('hidden'); return; }
+  $('view-login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  applyTheme();
+  updateHeaderUser();
+  buildNav();
+  navigate(state.currentView || 'dashboard');
+}
+
+function applyTheme(){
+  document.documentElement.classList.toggle('dark', state.darkMode);
+  $('theme-icon').textContent = state.darkMode ? '☀️' : '🌙';
+  $('theme-label').textContent = state.darkMode ? 'Modo claro' : 'Modo oscuro';
+}
+function toggleTheme(){ state.darkMode = !state.darkMode; saveState(); applyTheme(); }
+
+function updateHeaderUser(){
+  const u = state.usuario; if(!u) return;
+  $('header-nombre').textContent = u.nombre;
+  $('header-rol').textContent = u.rol;
+  const av = $('header-avatar');
+  if(u.foto){ av.innerHTML = `<img src="${u.foto}" class="w-full h-full object-cover" alt="avatar">`; }
+  else{ av.textContent = (u.nombre||'U').charAt(0).toUpperCase(); }
+}
+
+function buildNav(){
+  const items = [
+    {id:'feed',       icon:'🏠', label:'Feed'},
+    {id:'groups',     icon:'👥', label:'Grupos'},
+    {id:'bot',        icon:'🤖', label:'DafniaBot'},
+    {id:'dashboard',  icon:'📊', label:'Dashboard'},
+    {id:'setup',      icon:'⚙️', label:'Setup'},
+    {id:'checklist',  icon:'📋', label:'Checklist'},
+    {id:'diagnostico',icon:'🔍', label:'Diagnóstico'},
+    {id:'guia',       icon:'📖', label:'Guía'},
+    {id:'historial',  icon:'🗂️', label:'Historial'}
+  ].filter(it => {
+    if(state.usuario?.rol === 'invitado' && ['setup','checklist'].includes(it.id)) return false;
+    return true;
+  });
+  const html = items.map(it=>`
+    <button data-nav="${it.id}" onclick="navigate('${it.id}')" class="nav-item w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3">
+      <span class="text-lg">${it.icon}</span><span>${it.label}</span>
+    </button>`).join('');
+  $('nav').innerHTML = html;
+  $('nav-mobile').innerHTML = html;
+}
+
+function toggleSidebarMobile(){ $('mobile-sidebar').classList.toggle('hidden'); }
+
+/* ============================================================
+   NAVIGATION
+============================================================ */
+function navigate(view){
+  state.currentView = view; saveState();
+  document.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active', b.dataset.nav===view));
+  $('mobile-sidebar').classList.add('hidden');
+  destroyCharts();
+  const titles = {
+    feed:['Feed','Comunidad BioFlujo'],
+    groups:['Grupos','Colabora con tu equipo'],
+    bot:['DafniaBot 🦐','Asistente guiado'],
+    dashboard:['Dashboard','Panel del cultivo'],
+    setup:['Setup','Configuración del ciclo'],
+    checklist:['Checklist','Registro semanal'],
+    diagnostico:['Diagnóstico','Análisis y predicción'],
+    guia:['Guía','Aprende el sistema'],
+    historial:['Historial','Registros anteriores']
+  };
+  const [t,s] = titles[view] || ['BioFlujo',''];
+  $('header-title').textContent = t;
+  $('header-subtitle').textContent = s;
+
+  const renderers = {
+    feed: renderFeed, groups: renderGroups, bot: renderBot,
+    dashboard: renderDashboard, setup: renderSetup, checklist: renderChecklist,
+    diagnostico: renderDiagnostico, guia: renderGuia, historial: renderHistorial
+  };
+  (renderers[view]||renderDashboard)();
+}
+
+function destroyCharts(){
+  Object.values(chartInstances).forEach(c=>{ try{ c.destroy(); }catch(e){} });
+  chartInstances = {};
+}
+
+/* ============================================================
+   FEED
+============================================================ */
+function renderFeed(){
+  const u = state.usuario || { nombre:'Usuario', rol:'Estudiante' };
+  const posts = Array.isArray(state.posts) ? state.posts : [];
+  $('main').innerHTML = `
+    <div class="space-y-4 fade-in">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full bg-usb-blue text-white flex items-center justify-center font-bold overflow-hidden">${u.foto?`<img src="${u.foto}" class="w-full h-full object-cover">`:(u.nombre||'U')[0]}</div>
+          <textarea id="new-post" rows="2" placeholder="¿Qué está pasando en tu cultivo, ${esc((u.nombre||'').split(' ')[0])}?" class="flex-1 bg-slate-50 dark:bg-slate-700 rounded-xl p-3 text-sm outline-none resize-none"></textarea>
+        </div>
+        <div class="flex justify-between items-center mt-3">
+          <span class="text-xs text-slate-400">📸 Sube fotos desde tu galería (demo)</span>
+          <button onclick="publishPost()" class="bg-usb-blue hover:bg-usb-dark text-white px-4 py-2 rounded-lg text-sm font-semibold">Publicar</button>
+        </div>
+      </div>
+      <div id="posts-list" class="space-y-4">${posts.map(renderPost).join('')}</div>
+    </div>`;
+}
+
+function renderPost(p){
+  return `
+    <article class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-100 dark:border-slate-700 card-hover">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-full gradient-card text-white flex items-center justify-center font-bold">${esc(p.avatar||'U')}</div>
+        <div class="flex-1">
+          <p class="font-bold text-sm">${esc(p.autor||'Anónimo')} <span class="text-[10px] font-medium text-usb-blue dark:text-usb-gold bg-blue-50 dark:bg-slate-700 px-2 py-0.5 rounded-full ml-1">${esc(p.rol||'')}</span></p>
+          <p class="text-xs text-slate-400">${esc(p.tiempo||'')}</p>
+        </div>
+      </div>
+      <p class="text-sm whitespace-pre-line mb-3">${esc(p.texto||'')}</p>
+      <div class="rounded-xl gradient-card text-white flex items-center justify-center text-6xl py-12 mb-3">${p.emoji||'🌿'}</div>
+      <div class="flex gap-4 text-sm text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-700 pt-3">
+        <button onclick="likePost(${p.id})" class="hover:text-rose-500 transition ${p.liked?'text-rose-500 font-bold':''}">${p.liked?'❤️':'🤍'} ${p.likes||0}</button>
+        <button class="hover:text-usb-blue transition">💬 Comentar</button>
+        <button class="hover:text-usb-blue transition">↗ Compartir</button>
+      </div>
+    </article>`;
+}
+
+function publishPost(){
+  const el = $('new-post'); if(!el) return;
+  const txt = el.value.trim(); if(!txt) return;
+  state.posts.unshift({
+    id: Date.now(),
+    autor: state.usuario.nombre,
+    rol: state.usuario.rol,
+    avatar: (state.usuario.nombre||'U')[0].toUpperCase(),
+    tiempo: 'ahora', texto: txt, likes:0, liked:false, emoji:'🌿'
+  });
+  saveState(); renderFeed(); toast('Publicado ✅','ok');
+}
+
+function likePost(id){
+  const p = state.posts.find(x=>x.id===id); if(!p) return;
+  p.liked = !p.liked; p.likes = (p.likes||0) + (p.liked ? 1 : -1);
+  if(p.likes < 0) p.likes = 0;
+  saveState(); renderFeed();
+}
+
+/* ============================================================
+   GROUPS + CHAT
+============================================================ */
+function renderGroups(){
+  $('main').innerHTML = `
+    <div class="fade-in space-y-4">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+        <h2 class="font-bold text-lg mb-1">Tus grupos académicos</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Como en Classroom, cada grupo tiene chat y su propio simulador del huerto.</p>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        ${GRUPOS.map(g=>`
+          <div class="rounded-2xl overflow-hidden shadow-md card-hover cursor-pointer" onclick="openGroupChat('${g.id}')">
+            <div class="bg-gradient-to-br ${g.color} p-6 text-white">
+              <div class="text-4xl mb-2 float">${g.icono}</div>
+              <h3 class="font-bold text-lg">${esc(g.nombre)}</h3>
+            </div>
+            <div class="bg-white dark:bg-slate-800 p-4">
+              <p class="text-xs text-slate-500 mb-2">${esc(g.desc)}</p>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-400">👥 ${g.miembros} miembros</span>
+                <span class="text-usb-blue font-semibold">Abrir chat →</span>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function seedChat(gid){
+  if(!state.chats) state.chats = {};
+  if(state.chats[gid]) return state.chats[gid];
+  const g = GRUPOS.find(x=>x.id===gid) || {nombre:gid};
+  const pob = state.cicloActivo?.poblacionActual || state.cicloActivo?.poblacionInicial || 500;
+  const msgs = [
+    {autor:'Sistema', avatar:'🤖', rol:'bot', texto:`Bienvenidos al grupo ${g.nombre}. Aquí puedes chatear con el equipo y simular el huerto.`, tiempo:'09:00'},
+    {autor:'María G.', avatar:'M', rol:'estudiante', texto:'Hola equipo 👋 ¿Ya revisaron el checklist de esta semana?', tiempo:'09:15'},
+    {autor:'Carlos R.', avatar:'C', rol:'estudiante', texto:'Sí, EC en 1.4 mS/cm, todo en verde 🟢', tiempo:'09:18'},
+    {autor:'🤖 Máquina del Huerto', avatar:'⚙️', rol:'machine', texto:`📡 Lectura automática: T°=22.4°C · EC=1.42 · Nivel agua=87% · Población: ${pob.toLocaleString()}`, tiempo:'09:20'}
+  ];
+  state.chats[gid] = msgs;
+  saveState();
+  return msgs;
+}
+
+let activeGroup = null;
+function openGroupChat(gid){
+  activeGroup = gid;
+  seedChat(gid);
+  renderGroupChatView();
+}
+
+function renderGroupChatView(){
+  const g = GRUPOS.find(x=>x.id===activeGroup) || {nombre:activeGroup, icono:'💬', desc:'Chat'};
+  if(!state.chats[activeGroup]) seedChat(activeGroup);
+  $('header-title').textContent = g.nombre;
+  $('header-subtitle').textContent = 'Chat grupal';
+  $('main').innerHTML = `
+    <div class="fade-in flex flex-col" style="height:calc(100vh - 140px)">
+      <button onclick="navigate('groups')" class="self-start text-sm text-usb-blue mb-3 hover:underline">← Volver a grupos</button>
+      <div class="flex-1 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col overflow-hidden shadow-sm">
+        <div class="p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 flex items-center gap-2">
+          <span class="text-2xl">${g.icono}</span>
+          <div>
+            <p class="font-bold text-sm">${esc(g.nombre)}</p>
+            <p class="text-[11px] text-slate-500">${esc(g.desc||'')}</p>
+          </div>
+        </div>
+        <div id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin"></div>
+        <div class="border-t border-slate-100 dark:border-slate-700 p-3 bg-slate-50 dark:bg-slate-700/40">
+          <div class="flex gap-1 mb-2 flex-wrap">
+            <button onclick="machineAction('sensores')"  class="text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 px-2 py-1 rounded-full hover:bg-amber-200">📡 Leer sensores</button>
+            <button onclick="machineAction('riego')"     class="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full hover:bg-blue-200">💧 Regar</button>
+            <button onclick="machineAction('cosecha')"   class="text-xs bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-200 px-2 py-1 rounded-full hover:bg-rose-200">🦐 Cosechar</button>
+            <button onclick="machineAction('alimentar')" class="text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 px-2 py-1 rounded-full hover:bg-emerald-200">🌿 Alimentar</button>
+            <button onclick="machineAction('analisis')"  class="text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-800 dark:text-violet-200 px-2 py-1 rounded-full hover:bg-violet-200">🧪 Análisis</button>
+          </div>
+          <div class="flex gap-2">
+            <input id="chat-input" placeholder="Escribe un mensaje..." class="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-sm outline-none focus:border-usb-blue">
+            <button onclick="sendChatMessage()" class="bg-usb-blue hover:bg-usb-dark text-white px-4 py-2 rounded-xl text-sm font-semibold">Enviar</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  renderChatMessages();
+  const inp = $('chat-input');
+  if(inp) inp.addEventListener('keypress', e=>{ if(e.key==='Enter') sendChatMessage(); });
+}
+
+function renderChatMessages(){
+  if(!activeGroup) return;
+  if(!state.chats) state.chats = {};
+  if(!state.chats[activeGroup]) seedChat(activeGroup);
+  const box = $('chat-box'); if(!box) return;
+  const msgs = state.chats[activeGroup] || [];
+  box.innerHTML = msgs.map(m=>{
+    const isMe = m.autor === state.usuario?.nombre;
+    const isBot = m.rol==='machine' || m.rol==='bot';
+    const bubble = isBot ? 'bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600'
+                   : isMe ? 'bg-usb-blue text-white'
+                   : 'bg-slate-100 dark:bg-slate-700';
+    const align = isMe ? 'justify-end' : 'justify-start';
+    return `
+      <div class="flex ${align} chat-bubble">
+        <div class="max-w-[80%] flex gap-2 ${isMe?'flex-row-reverse':''}">
+          <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${isBot?'bg-slate-700 text-white':isMe?'bg-usb-gold text-usb-dark':'bg-usb-blue text-white'} overflow-hidden">${esc(m.avatar||'?')}</div>
+          <div class="rounded-2xl px-3 py-2 ${bubble}">
+            <p class="text-[10px] font-bold opacity-70 mb-0.5">${esc(m.autor||'')} · ${esc(m.tiempo||'')}</p>
+            <p class="text-sm whitespace-pre-line">${esc(m.texto||'')}</p>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function sendChatMessage(){
+  if(!activeGroup) return;
+  const inp = $('chat-input'); if(!inp) return;
+  const txt = inp.value.trim(); if(!txt) return;
+  if(!state.chats[activeGroup]) seedChat(activeGroup);
+  state.chats[activeGroup].push({
+    autor: state.usuario.nombre,
+    avatar: (state.usuario.nombre||'U')[0].toUpperCase(),
+    rol:'yo', texto: txt,
+    tiempo: new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})
+  });
+  inp.value = '';
+  saveState(); renderChatMessages();
+  const groupRef = activeGroup;
+  setTimeout(()=>{
+    const replies = ['👍 Buen aporte', 'Interesante, lo reviso', 'De acuerdo con el equipo', 'Anotado para el próximo checklist', '¡Buen trabajo!'];
+    const names = ['María G.','Carlos R.','Prof. Andrés','Laura M.'];
+    if(!state.chats[groupRef]) return;
+    const nameIdx = Math.floor(Math.random()*names.length);
+    const name = names[nameIdx];
+    state.chats[groupRef].push({
+      autor: name, avatar: name[0], rol:'estudiante',
+      texto: replies[Math.floor(Math.random()*replies.length)],
+      tiempo: new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})
+    });
+    saveState();
+    if(activeGroup === groupRef) renderChatMessages();
+  }, 1500);
+}
+
+function machineAction(type){
+  if(!activeGroup) return;
+  const c = state.cicloActivo || {};
+  const pob = c.poblacionActual || c.poblacionInicial || 500;
+  let texto = '';
+  switch(type){
+    case 'sensores':
+      texto = `📡 Lectura de sensores:\n🌡️ T° Tanque B: ${(20+Math.random()*5).toFixed(1)}°C\n🌡️ T° Ambiente: ${(17+Math.random()*4).toFixed(1)}°C\n⚡ EC: ${(1.1+Math.random()*0.6).toFixed(2)} mS/cm\n💧 Humedad sustrato: ${(55+Math.random()*20).toFixed(0)}%\n🦐 Población actual: ${pob.toLocaleString()}`;
+      break;
+    case 'riego':
+      texto = `💧 Riego ejecutado correctamente.\nSe liberaron 2.5 L en el tanque principal.\nNivel restante: ${(80+Math.random()*15).toFixed(0)}%`;
+      break;
+    case 'cosecha': {
+      const cosechadas = Math.min(1200, Math.max(0, Math.floor(pob * 0.35)));
+      if(c.activo){
+        c.poblacionActual = Math.max(0, pob - cosechadas);
+        saveState();
+      }
+      texto = `🦐 Cosecha simulada:\nSe colaron ${cosechadas.toLocaleString()} daphnias del Tanque B.\nPreparadas ${Math.ceil(cosechadas/400)} bolsitas de té.\nPoblación restante: ${c.poblacionActual?.toLocaleString() || '—'}`;
+      break;
+    }
+    case 'alimentar':
+      texto = `🌿 Alimentación registrada:\nSe agregaron 500 mL de agua verde al Tanque B.\nPróxima alimentación: en 7 días.`;
+      break;
+    case 'analisis':
+      texto = `🧪 Análisis rápido:\nEstado: ÓPTIMO 🟢\nPoblación: ${pob.toLocaleString()}\nTendencia EC: estable.\nAcción sugerida: continuar mantenimiento normal.`;
+      break;
+  }
+  state.chats[activeGroup].push({
+    autor:'🤖 Máquina del Huerto', avatar:'⚙️', rol:'machine',
+    texto, tiempo: new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})
+  });
+  saveState();
+  renderChatMessages();
+}
+
+/* ============================================================
+   BOT
+============================================================ */
+const BOT_FLOW = {
+  root: {
+    msg:'¡Hola! Soy DafniaBot 🦐 tu asistente del sistema. ¿Qué quieres saber?',
+    opts:[
+      {t:'🧪 ¿Cómo funciona el sistema?', next:'sistema'},
+      {t:'🔬 ¿Cómo cuento Daphnias?', next:'conteo'},
+      {t:'📊 ¿Cómo leo mi diagnóstico?', next:'diag'},
+      {t:'🌿 ¿Cómo cuido las plantas?', next:'plantas'},
+      {t:'🦐 ¿Cómo cuido las Daphnias?', next:'daphnias'},
+      {t:'🤖 Conectar con la máquina del huerto', next:'maquina'}
+    ]
+  },
+  sistema: {msg:'El sistema tiene 4 módulos:\n\n1️⃣ Setup — cuentas daphnias, eliges plantas, validamos viabilidad.\n2️⃣ Checklist semanal — registras EC, temperatura, mantenimiento y cosecha.\n3️⃣ Diagnóstico — calculamos población, IE y tareas.\n4️⃣ Guía — tutoriales de mantenimiento y solución de problemas.',opts:[{t:'¿Qué es la UMD?',next:'umd'},{t:'¿Qué es el EC?',next:'ec'},{t:'🔙 Volver',next:'root'}]},
+  umd: {msg:'UMD = Unidad de Masa de Daphnia.\n\nFórmula: UMD = Población / 10,000\n\n10,000 daphnias = 1 UMD. Nos permite comparar producción con consumo de plantas.',opts:[{t:'¿Y el EC?',next:'ec'},{t:'🔙 Volver',next:'root'}]},
+  ec: {msg:'EC = Conductividad Eléctrica (mS/cm).\n\nIndica concentración de nutrientes:\n• <1.0: déficit (plantas con hambre)\n• 1.3-1.6: equilibrio ✅\n• >1.8: toxicidad (diluir)\n\nComparamos el EC medido con el ideal de cada planta.',opts:[{t:'🔙 Volver',next:'root'},{t:'Ir al dashboard',action:'goto:dashboard'}]},
+  conteo: {msg:'Muestreo por alícuota:\n1. Homogeneiza el Tanque B.\n2. Toma 10 mL con pipeta.\n3. Cuenta daphnias.\n4. Total = Pulgas × (V_total / V_muestra)\n\nEjemplo: 25 pulgas en 10 mL de 200 mL = 500 daphnias.',opts:[{t:'Ir al Setup',action:'goto:setup'},{t:'🔙 Volver',next:'root'}]},
+  diag: {msg:'Tu diagnóstico tiene 3 piezas:\n\n📊 IE (Índice de Equilibrio): Verde ≥80, Amarillo 50-79, Rojo <50.\n👥 Población: modelo logístico + cosechas.\n📝 Tareas: acciones concretas.',opts:[{t:'Ver diagnóstico',action:'goto:diagnostico'},{t:'🔙 Volver',next:'root'}]},
+  plantas: {msg:'Hidroponía — claves:\n• EC 1.3-1.8\n• pH 5.5-6.5\n• T° 18-24°C\n• Luz 6+ h/día\n\nHojas amarillas = déficit N. Bordes marrones = exceso de sales. Manchas = hongos.',opts:[{t:'Ver catálogo',action:'goto:setup'},{t:'🔙 Volver',next:'root'}]},
+  daphnias: {msg:'Daphnia (pulga de agua):\n• Se duplica cada 36h (ideal)\n• T° ideal 20-24°C\n• Alimento: agua verde\n• Estrés: T>28°C, EC>2\n• Cosecha al 60-80% de capacidad\n• Registra TU cosecha en el Checklist para que la población baje en el modelo.',opts:[{t:'Ir al Checklist',action:'goto:checklist'},{t:'🔙 Volver',next:'root'}]},
+  maquina: {msg:'🤖 Nodo ESP32 del huerto:\n📡 Estado: ONLINE\n🌡️ T°=22.4°C\n⚡ EC=1.42 mS/cm\n💧 Nivel agua: 87%\n\nPuedes simular acciones desde el chat de cualquier grupo (botones de arriba).',opts:[{t:'Enviar comando de prueba',action:'cmd'},{t:'🔙 Volver',next:'root'}]}
+};
+
+function ensureBot(){
+  if(!state.chats) state.chats = {};
+  if(!state.chats.__bot){
+    state.chats.__bot = [{
+      autor:'DafniaBot', avatar:'🦐', rol:'bot',
+      texto: BOT_FLOW.root.msg, opts: BOT_FLOW.root.opts, tiempo:'ahora'
+    }];
+  }
+}
+
+function renderBot(){
+  ensureBot();
+  $('main').innerHTML = `
+    <div class="fade-in flex flex-col" style="height:calc(100vh - 140px)">
+      <div class="bg-gradient-to-r from-usb-blue to-usb-green rounded-2xl p-4 text-white mb-3 flex items-center gap-3 shadow-lg">
+        <div class="text-4xl float">🦐</div>
+        <div><h2 class="font-bold text-lg">DafniaBot</h2><p class="text-xs text-white/80">Asistente guiado con opciones</p></div>
+      </div>
+      <div class="flex-1 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col overflow-hidden shadow-sm">
+        <div id="bot-box" class="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin"></div>
+      </div>
+    </div>`;
+  renderBotMessages();
+}
+
+function renderBotMessages(){
+  ensureBot();
+  const box = $('bot-box'); if(!box) return;
+  const msgs = state.chats.__bot || [];
+  box.innerHTML = msgs.map((m,i)=>{
+    const total = msgs.length;
+    return `
+      <div class="chat-bubble">
+        <div class="flex gap-2">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-usb-blue to-usb-green text-white flex-shrink-0 flex items-center justify-center text-sm">${esc(m.avatar||'🤖')}</div>
+          <div class="flex-1">
+            <div class="bg-slate-100 dark:bg-slate-700 rounded-2xl px-3 py-2 inline-block max-w-full">
+              <p class="text-sm whitespace-pre-line">${esc(m.texto||'')}</p>
+            </div>
+            ${m.opts ? `<div class="mt-2 flex flex-wrap gap-1.5">
+              ${m.opts.map(o=>`<button onclick="botChoose(${total-1-i}, '${esc(o.t).replace(/'/g,"&#39;")}')" class="text-xs bg-usb-blue hover:bg-usb-dark text-white px-3 py-1.5 rounded-full transition">${esc(o.t)}</button>`).join('')}
+            </div>`:''}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function botChoose(idxFromEnd, optionText){
+  ensureBot();
+  const msgs = state.chats.__bot;
+  const msgIndex = msgs.length - 1 - idxFromEnd;
+  const origin = msgs[msgIndex];
+  if(!origin || !origin.opts) return;
+  const opt = origin.opts.find(o=>o.t===optionText);
+  if(!opt) return;
+  msgs.push({ autor: state.usuario?.nombre || 'Tú', avatar: 'T', texto: optionText, tiempo:'ahora' });
+
+  if(opt.action){
+    if(opt.action === 'cmd'){
+      msgs.push({
+        autor:'DafniaBot', avatar:'🦐',
+        texto:'✅ Comando enviado a la máquina: "Diagnóstico completo".\n\nRespuesta del nodo ESP32:\n📡 Sensores OK · Todos los valores en rango.\nPróxima lectura en 1h.',
+        opts:[{t:'🔙 Volver al inicio', next:'root'}], tiempo:'ahora'
+      });
+    } else if(opt.action.startsWith('goto:')){
+      const target = opt.action.split(':')[1];
+      saveState();
+      navigate(target);
+      return;
+    }
+  } else if(opt.next){
+    const flow = BOT_FLOW[opt.next];
+    if(flow){
+      msgs.push({ autor:'DafniaBot', avatar:'🦐', texto: flow.msg, opts: flow.opts, tiempo:'ahora' });
+    }
+  }
+  saveState();
+  renderBotMessages();
+}
+
+/* ============================================================
+   FORMULAS
+============================================================ */
+function calcularPoblacionEstimada(P0, dias, K=5000, tdHoras=36){
+  if(!P0 || P0<=0) return 0;
+  if(P0>=K) return Math.round(K);
+  const r = Math.log(2)/tdHoras;
+  const t = dias*24;
+  return Math.round(K / (1 + ((K-P0)/P0) * Math.exp(-r*t)));
+}
+function faseCrecimientoSemana(semana, cat){
+  const pct = cat.fase[Math.min(semana,5)] ?? 1.0;
+  const nombre = semana<=1?'plántula' : semana<=3?'vegetativo' : semana<=5?'maduración' : 'cosecha';
+  return {fase:nombre, pct};
+}
+function calcularIE(ecMedido, ecIdeal, poblacion, plantas, semana){
+  let demanda = 0;
+  for(const p of plantas||[]){
+    const cat = CATALOGO.find(c=>c.id===p.especie); if(!cat) continue;
+    const f = faseCrecimientoSemana(semana, cat);
+    demanda += p.cantidad * cat.pulgas * f.pct / 10000;
+  }
+  const umd = poblacion/10000;
+  if(demanda === 0) return 100;
+  const factor = ecMedido / ecIdeal;
+  return Math.min(Math.round((umd/demanda)*factor*100), 100);
+}
+function tareasSemanales(ie, pob, cap, ec, ecIdeal, temp, diasLimpieza, amarillas){
+  const t=[], a=[];
+  if(ec < ecIdeal*0.7){ t.push('🔴 URGENTE: Déficit nutricional crítico. Activar Bypass de Té de Daphnia 30 min HOY.'); a.push('EC muy bajo: '+ec+' mS/cm'); }
+  else if(ec < ecIdeal*0.85){ t.push('🟡 Activar Bypass de Té de Daphnia 15 min hoy.'); }
+  else if(ec > ecIdeal*1.2){ t.push('🟡 Saturación. Agregar 2 L de agua pura para diluir.'); }
+  if(pob >= cap*0.8){ t.push('🔴 COSECHA OBLIGATORIA: Colar el 50% de Daphnias.'); a.push('Población cerca del colapso: '+pob); }
+  else if(pob >= cap*0.6){ t.push('🟡 Preparar cosecha: Colar el 30% esta semana.'); }
+  if(temp > 28) a.push('🔴 PELIGRO: T°='+temp+'°C. Mover a sombra inmediatamente.');
+  else if(temp < 15) a.push('🟡 T° baja ('+temp+'°C). Daphnias dejarán de reproducirse.');
+  if(diasLimpieza >= 7) t.push('🧹 LIMPIEZA: Lavar filtro de 100 micras y filtro de desechos.');
+  if(amarillas > 0) t.push('🔍 INSPECCIÓN: Revisar raíces de '+amarillas+' planta(s) amarilla(s).');
+  t.push('🟢 Alimentar Daphnias: agregar 500 mL de agua verde al Tanque B.');
+  t.push('📝 Registrar observaciones y foto del cultivo.');
+  return {tareas:t, alertas:a};
+}
+function regresionPendiente(y){
+  const n = y.length; if(n<2) return 0;
+  const xs = y.map((_,i)=>i+1);
+  const sx = xs.reduce((a,b)=>a+b,0);
+  const sy = y.reduce((a,b)=>a+b,0);
+  const sxy = xs.reduce((a,x,i)=>a+x*y[i],0);
+  const sxx = xs.reduce((a,x)=>a+x*x,0);
+  const denom = n*sxx - sx*sx;
+  return denom===0 ? 0 : (n*sxy - sx*sy)/denom;
+}
+function calcularDiasObjetivo(pob, obj, K=5000, td=36){
+  if(obj > K) return -1;
+  if(pob >= obj) return 0;
+  const r = Math.log(2)/td;
+  const term = (K-obj)/(obj*((K-pob)/pob));
+  if(term <= 0) return -1;
+  return Math.ceil(-Math.log(term)/r/24);
+}
+
+/* ============================================================
+   DASHBOARD
+============================================================ */
+function renderDashboard(){
+  const c = state.cicloActivo || {};
+  const u = state.usuario || { nombre:'Usuario' };
+  const pob = c.activo ? (c.poblacionActual ?? c.poblacionInicial ?? 0) : 0;
+  const umd = (pob/10000).toFixed(2);
+  const ultimoReg = (state.historialSemanal||[]).filter(h=>!h.esInicio).slice(-1)[0];
+  const ie = ultimoReg ? ultimoReg.ie : (c.activo ? calcularIE(c.ecIdeal||1.5, c.ecIdeal||1.5, pob, c.plantas||[], c.semana||1) : 0);
+  const ieColor = ie>=80?'emerald':ie>=50?'amber':'red';
+  const ieText = ie>=80?'Óptimo':ie>=50?'Precaución':'Crítico';
+  const numPlantas = (c.plantas||[]).reduce((a,p)=>a+(p.cantidad||0),0);
+
+  $('main').innerHTML = `
+    <div class="fade-in space-y-4">
+      <div class="rounded-2xl gradient-card text-white p-6 shadow-xl relative overflow-hidden">
+        <div class="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10"></div>
+        <div class="relative">
+          <p class="text-sm text-white/80">Hola, ${esc((u.nombre||'').split(' ')[0]||'')} 👋</p>
+          <h2 class="text-2xl font-bold mt-1">${c.activo ? `Semana ${c.semana} del ciclo` : 'Sin ciclo activo'}</h2>
+          <p class="text-sm text-white/80 mt-1">${c.activo ? `${numPlantas} plantas · ${pob.toLocaleString()} daphnias estimadas` : 'Inicia tu primer ciclo en Setup'}</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 card-hover">
+          <p class="text-xs text-slate-500">Población actual</p>
+          <p class="text-2xl font-bold text-usb-blue dark:text-usb-gold">${pob.toLocaleString()}</p>
+          <p class="text-[10px] text-slate-400">UMD: ${umd}</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 card-hover">
+          <p class="text-xs text-slate-500">Índice Equilibrio</p>
+          <p class="text-2xl font-bold text-${ieColor}-500">${ie}/100</p>
+          <p class="text-[10px] text-${ieColor}-500 font-semibold">${ieText}</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 card-hover">
+          <p class="text-xs text-slate-500">EC Actual</p>
+          <p class="text-2xl font-bold">${ultimoReg?.ec?.toFixed?.(2) ?? '—'} <span class="text-xs">mS/cm</span></p>
+          <p class="text-[10px] text-slate-400">Ideal: ${c.ecIdeal||1.5}</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700 card-hover">
+          <p class="text-xs text-slate-500">Registros</p>
+          <p class="text-2xl font-bold">${(state.historialSemanal||[]).filter(h=>!h.esInicio).length}</p>
+          <p class="text-[10px] text-slate-400">semanas</p>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+          <p class="font-bold mb-2 text-sm">📈 Población Daphnia</p>
+          <div class="h-48"><canvas id="chart-pop"></canvas></div>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+          <p class="font-bold mb-2 text-sm">⚡ EC (mS/cm)</p>
+          <div class="h-48"><canvas id="chart-ec"></canvas></div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+        <p class="font-bold mb-2 text-sm">🌡️ Temperatura Tanque B (°C)</p>
+        <div class="h-48"><canvas id="chart-temp"></canvas></div>
+      </div>
+
+      ${!c.activo ? `<div class="rounded-2xl border-2 border-dashed border-usb-blue/40 p-6 text-center bg-blue-50/40 dark:bg-slate-800/60">
+        <p class="text-sm text-slate-600 dark:text-slate-300 mb-3">Aún no has iniciado un ciclo de cultivo.</p>
+        <button onclick="navigate('setup')" class="bg-usb-blue hover:bg-usb-dark text-white px-6 py-2.5 rounded-xl font-semibold">⚙️ Iniciar ciclo ahora</button>
+      </div>`:''}
+    </div>`;
+
+  setTimeout(drawCharts, 80);
+}
+
+function drawCharts(){
+  const hist = state.historialSemanal || [];
+  const labels = hist.map(h => h.esInicio ? 'Inicio' : `S${h.semana}`);
+  const pobData = hist.map(h => h.poblacion||0);
+  const ecData = hist.map(h => h.ec||0);
+  const tempData = hist.map(h => h.temp||0);
+
+  if(labels.length===0){ labels.push('—'); pobData.push(0); ecData.push(0); tempData.push(0); }
+
+  const textColor = state.darkMode ? '#cbd5e1' : '#475569';
+  const opts = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      y:{beginAtZero:true, grid:{color:'rgba(148,163,184,.15)'}, ticks:{color:textColor}},
+      x:{grid:{display:false}, ticks:{color:textColor}}
+    }
+  };
+  try{
+    if($('chart-pop')) chartInstances.pop = new Chart($('chart-pop'), {type:'line',data:{labels,datasets:[{label:'Población',data:pobData,borderColor:'#003C71',backgroundColor:'rgba(0,60,113,.15)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'#FDB913'}]},options:opts});
+    if($('chart-ec'))  chartInstances.ec  = new Chart($('chart-ec'), {type:'line',data:{labels,datasets:[{label:'EC',data:ecData,borderColor:'#10B981',backgroundColor:'rgba(16,185,129,.15)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'#FDB913'}]},options:opts});
+    if($('chart-temp')) chartInstances.temp = new Chart($('chart-temp'), {type:'line',data:{labels,datasets:[{label:'Temp',data:tempData,borderColor:'#f97316',backgroundColor:'rgba(249,115,22,.15)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'#FDB913'}]},options:opts});
+  }catch(e){ console.warn('chart error', e); }
+}
+
+/* ============================================================
+   SETUP
+============================================================ */
+let setupDraft = { paso:1, volMuestra:10, volTotal:200, pulgasContadas:25, plantas:[] };
+
+function renderSetup(){
+  const d = setupDraft;
+  const pobInicial = d.pulgasContadas * (d.volTotal / d.volMuestra);
+  const umdInicial = pobInicial/10000;
+  const totalPulgas = d.plantas.reduce((a,p)=>a + (CATALOGO.find(c=>c.id===p.especie)?.pulgas||0)*p.cantidad, 0);
+  const viable = pobInicial >= totalPulgas;
+
+  $('main').innerHTML = `
+    <div class="fade-in space-y-4 max-w-3xl mx-auto">
+      <div class="flex justify-between items-center gap-1 mb-2">
+        ${[1,2,3].map(n=>`<div class="flex-1 h-2 rounded ${d.paso>=n?'bg-usb-blue':'bg-slate-200 dark:bg-slate-700'}"></div>`).join('')}
+      </div>
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm">
+        ${d.paso===1 ? `
+          <h2 class="text-xl font-bold mb-1">Paso 1 · Conteo por alícuota</h2>
+          <p class="text-sm text-slate-500 mb-4">Toma una muestra del Tanque B y cuenta las daphnias.</p>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div><label class="text-xs font-semibold">Volumen muestra (mL)</label>
+              <input id="s-vol-m" type="number" value="${d.volMuestra}" oninput="updateSetup()" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+            <div><label class="text-xs font-semibold">Volumen total (mL)</label>
+              <input id="s-vol-t" type="number" value="${d.volTotal}" oninput="updateSetup()" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+          </div>
+          <div><label class="text-xs font-semibold">Daphnias contadas</label>
+            <input id="s-pulgas" type="number" value="${d.pulgasContadas}" oninput="updateSetup()" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+          <div class="mt-4 rounded-xl p-4 bg-gradient-to-r from-usb-blue/10 to-emerald-500/10 border border-usb-blue/20">
+            <p class="text-xs text-slate-500">Población inicial estimada</p>
+            <p class="text-3xl font-bold text-usb-blue dark:text-usb-gold">${pobInicial.toLocaleString()} daphnias</p>
+            <p class="text-xs text-slate-500">= ${umdInicial.toFixed(3)} UMD</p>
+          </div>
+          <div class="mt-4 flex justify-end">
+            <button onclick="setupNext(2)" class="bg-usb-blue hover:bg-usb-dark text-white px-6 py-2.5 rounded-xl font-semibold">Siguiente →</button>
+          </div>
+        `: d.paso===2 ? `
+          <h2 class="text-xl font-bold mb-1">Paso 2 · Selección de plantas</h2>
+          <p class="text-sm text-slate-500 mb-4">Elige del catálogo y define cantidades.</p>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3 max-h-80 overflow-y-auto scrollbar-thin pr-1">
+            ${CATALOGO.map(cat=>{
+              const sel = d.plantas.find(p=>p.especie===cat.id);
+              return `<div class="border-2 ${sel?'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20':'border-slate-200 dark:border-slate-600'} rounded-xl p-2 text-center">
+                <div class="text-2xl">${cat.e}</div>
+                <p class="text-xs font-bold leading-tight mt-1">${cat.n}</p>
+                <p class="text-[10px] text-slate-500">${cat.pulgas} 🦐</p>
+                <input type="number" min="0" value="${sel?sel.cantidad:0}" onchange="setPlantQty('${cat.id}', this.value)" class="w-full mt-1 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded px-1 py-0.5 text-xs text-center">
+              </div>`;
+            }).join('')}
+          </div>
+          <div class="rounded-xl p-3 bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600">
+            <p class="text-xs text-slate-500">Pulgas requeridas: <b>${totalPulgas.toLocaleString()}</b> · Disponibles: <b>${pobInicial.toLocaleString()}</b></p>
+          </div>
+          <div class="mt-4 flex justify-between">
+            <button onclick="setupNext(1)" class="bg-slate-100 dark:bg-slate-700 px-6 py-2.5 rounded-xl font-semibold">← Atrás</button>
+            <button onclick="setupNext(3)" class="bg-usb-blue hover:bg-usb-dark text-white px-6 py-2.5 rounded-xl font-semibold">Validar →</button>
+          </div>
+        `: `
+          <h2 class="text-xl font-bold mb-1">Paso 3 · Viabilidad</h2>
+          <p class="text-sm text-slate-500 mb-4">Resultado del motor de viabilidad.</p>
+          ${viable ? `
+            <div class="rounded-xl p-4 bg-emerald-50 dark:bg-emerald-900/30 border-2 border-emerald-400 mb-4">
+              <p class="text-lg font-bold text-emerald-700 dark:text-emerald-300">✅ VIABLE</p>
+              <p class="text-sm mt-1">Tienes ${pobInicial.toLocaleString()} daphnias y necesitas ${totalPulgas.toLocaleString()} para tus ${d.plantas.reduce((a,p)=>a+p.cantidad,0)} plantas.</p>
+            </div>
+            <div class="space-y-1 text-sm bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 mb-4">
+              <p><b>Plantas:</b> ${d.plantas.map(p=>`${p.cantidad}× ${CATALOGO.find(c=>c.id===p.especie)?.n||p.especie}`).join(', ')}</p>
+              <p><b>Población inicial:</b> ${pobInicial.toLocaleString()} daphnias (${umdInicial.toFixed(3)} UMD)</p>
+              <p><b>Fecha de inicio:</b> ${new Date().toLocaleDateString('es-CO')}</p>
+              <p><b>Cosecha estimada:</b> ${new Date(Date.now()+40*86400000).toLocaleDateString('es-CO')}</p>
+            </div>
+            <button onclick="startCycle()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold">🚀 Iniciar ciclo</button>
+          ` : `
+            <div class="rounded-xl p-4 bg-amber-50 dark:bg-amber-900/30 border-2 border-amber-400 mb-4">
+              <p class="text-lg font-bold text-amber-700 dark:text-amber-300">⚠️ NO VIABLE</p>
+              <p class="text-sm mt-1">Tienes ${pobInicial.toLocaleString()} daphnias pero necesitas ${totalPulgas.toLocaleString()}. Faltan ${(totalPulgas-pobInicial).toLocaleString()}.</p>
+            </div>
+            <div class="rounded-xl p-3 bg-slate-50 dark:bg-slate-700/40 mb-4 text-sm">
+              <p class="font-semibold mb-2">💡 Sugerencias inteligentes:</p>
+              <ul class="list-disc pl-5 space-y-1">
+                ${d.plantas.map(p=>{
+                  const cat = CATALOGO.find(c=>c.id===p.especie);
+                  const max = Math.floor(pobInicial / cat.pulgas);
+                  return max>0 ? `<li>Podrías cultivar hasta <b>${max}× ${cat.n}</b></li>` : '';
+                }).join('')}
+                <li>Opción B: esperar <b>${calcularDiasObjetivo(pobInicial, totalPulgas)}</b> días a que se reproduzcan</li>
+              </ul>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="setupNext(2)" class="flex-1 bg-slate-100 dark:bg-slate-700 py-3 rounded-xl font-semibold">← Ajustar plantas</button>
+            </div>
+          `}
+          <div class="mt-4 text-center"><button onclick="setupDraft={paso:1,volMuestra:10,volTotal:200,pulgasContadas:25,plantas:[]};renderSetup();" class="text-xs text-slate-500 hover:underline">Reiniciar setup</button></div>
+        `}
+      </div>
+    </div>`;
+}
+
+function updateSetup(){
+  setupDraft.volMuestra = parseInt($('s-vol-m').value)||10;
+  setupDraft.volTotal = parseInt($('s-vol-t').value)||200;
+  setupDraft.pulgasContadas = parseInt($('s-pulgas').value)||0;
+  renderSetup();
+}
+function setPlantQty(id, q){
+  q = parseInt(q)||0;
+  const existing = setupDraft.plantas.find(p=>p.especie===id);
+  if(q<=0){ setupDraft.plantas = setupDraft.plantas.filter(p=>p.especie!==id); }
+  else if(existing){ existing.cantidad = q; }
+  else { setupDraft.plantas.push({especie:id, cantidad:q}); }
+  renderSetup();
+}
+function setupNext(p){
+  if(p===3 && setupDraft.plantas.length===0){ toast('Selecciona al menos una planta','warn'); return; }
+  setupDraft.paso = p; renderSetup();
+}
+
+function startCycle(){
+  const pob = Math.round(setupDraft.pulgasContadas * (setupDraft.volTotal/setupDraft.volMuestra));
+  const hoy = new Date().toISOString().split('T')[0];
+  state.cicloActivo = {
+    activo: true,
+    semana: 1,
+    poblacionInicial: pob,
+    poblacionActual: pob,
+    umdInicial: pob/10000,
+    capacidadCarga: 5000,
+    plantas: setupDraft.plantas.map(p=>({...p})),
+    fechaInicio: new Date().toISOString(),
+    ecIdeal: 1.5
+  };
+  state.historialSemanal = [{
+    semana: 0,
+    fecha: hoy,
+    ec: 1.4,
+    temp: 22,
+    poblacion: pob,
+    ie: calcularIE(1.4, 1.5, pob, setupDraft.plantas, 1),
+    cosechadas: 0,
+    esInicio: true,
+    alertas: [],
+    tareas: ['🌱 Ciclo iniciado. Registra tu primer checklist al final de la semana 1.'],
+    observaciones: 'Punto de partida (día 0).'
+  }];
+  setupDraft = { paso:1, volMuestra:10, volTotal:200, pulgasContadas:25, plantas:[] };
+  saveState();
+  toast('¡Ciclo iniciado! 🎉','ok');
+  navigate('dashboard');
+}
+
+/* ============================================================
+   CHECKLIST
+============================================================ */
+function renderChecklist(){
+  if(state.usuario?.rol==='invitado'){
+    $('main').innerHTML = `<p class="text-center text-slate-500 py-20">👁️ Modo lectura: no puedes llenar checklists.</p>`;
+    return;
+  }
+  if(!state.cicloActivo?.activo){
+    $('main').innerHTML = `
+      <div class="text-center py-20 max-w-md mx-auto fade-in">
+        <div class="text-6xl mb-4">🌱</div>
+        <p class="text-slate-500 mb-4">Primero inicia un ciclo de cultivo desde Setup.</p>
+        <button onclick="navigate('setup')" class="bg-usb-blue hover:bg-usb-dark text-white px-6 py-3 rounded-xl font-bold">Ir a Setup</button>
+      </div>`;
+    return;
+  }
+  const s = state.cicloActivo.semana;
+  const c = state.cicloActivo;
+  const pobActual = c.poblacionActual ?? c.poblacionInicial;
+  const pobCrecida = calcularPoblacionEstimada(pobActual, 7, c.capacidadCarga);
+
+  $('main').innerHTML = `
+    <div class="fade-in max-w-2xl mx-auto space-y-4">
+      <div class="rounded-2xl gradient-card text-white p-5 shadow-lg">
+        <p class="text-sm text-white/80">Registro semanal</p>
+        <h2 class="text-2xl font-bold">Semana ${s} del ciclo</h2>
+        <p class="text-xs text-white/70 mt-1">Completa los campos y registra tu cosecha para actualizar la población.</p>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700 space-y-4">
+        <h3 class="font-bold">A. Mediciones físicas</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs font-semibold">EC (mS/cm)</label><input id="cl-ec" type="number" step="0.01" value="1.4" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+          <div><label class="text-xs font-semibold">T° Tanque B (°C)</label><input id="cl-temp" type="number" step="0.1" value="22" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+          <div><label class="text-xs font-semibold">T° Ambiente (°C)</label><input id="cl-temp-a" type="number" step="0.1" value="19" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+          <div><label class="text-xs font-semibold">Humedad sustrato (%)</label><input id="cl-hum" type="number" value="65" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+        </div>
+
+        <h3 class="font-bold pt-2">B. Estado biológico</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs font-semibold">Población visual</label>
+            <select id="cl-pob" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1">
+              <option value="bajo">Bajo</option><option value="medio" selected>Medio</option><option value="alto">Alto</option><option value="critico">Crítico</option>
+            </select></div>
+          <div><label class="text-xs font-semibold">Plantas amarillas</label><input id="cl-amarillas" type="number" value="0" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+          <div><label class="text-xs font-semibold">Plantas muertas</label><input id="cl-muertas" type="number" value="0" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+          <div><label class="text-xs font-semibold">Nivel agua</label>
+            <select id="cl-agua" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1">
+              <option value="ok">OK</option><option value="bajo">Bajo</option>
+            </select></div>
+        </div>
+
+        <h3 class="font-bold pt-2">🦐 C. Cosecha de Daphnias</h3>
+        <div class="rounded-xl p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+          <div class="grid grid-cols-3 gap-2 text-xs text-center mb-3">
+            <div class="bg-white/60 dark:bg-slate-800/60 rounded-lg p-2">
+              <p class="text-[10px] text-slate-500">Población actual</p>
+              <p class="font-bold text-usb-blue dark:text-usb-gold">${pobActual.toLocaleString()}</p>
+            </div>
+            <div class="bg-white/60 dark:bg-slate-800/60 rounded-lg p-2">
+              <p class="text-[10px] text-slate-500">Crecimiento estimado (7d)</p>
+              <p class="font-bold text-emerald-600 dark:text-emerald-400">→ ${pobCrecida.toLocaleString()}</p>
+            </div>
+            <div class="bg-white/60 dark:bg-slate-800/60 rounded-lg p-2">
+              <p class="text-[10px] text-slate-500">Capacidad tanque</p>
+              <p class="font-bold">${(c.capacidadCarga||5000).toLocaleString()}</p>
+            </div>
+          </div>
+          <label class="text-xs font-semibold">Daphnias cosechadas esta semana</label>
+          <input id="cl-cosecha" type="number" min="0" value="0" oninput="updateHarvestPreview(${pobCrecida})" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1">
+          <p id="harvest-preview" class="text-xs mt-2 text-slate-600 dark:text-slate-300">
+            Al final de la semana quedarán <b>${pobCrecida.toLocaleString()}</b> daphnias
+          </p>
+        </div>
+
+        <h3 class="font-bold pt-2">D. Mantenimiento</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs font-semibold">Agua verde agregada (mL)</label><input id="cl-agua-verde" type="number" value="500" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+          <div><label class="text-xs font-semibold">Días desde limpieza filtro</label><input id="cl-dias-limpieza" type="number" value="5" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 mt-1"></div>
+        </div>
+
+        <h3 class="font-bold pt-2">E. Observaciones</h3>
+        <textarea id="cl-obs" rows="2" placeholder="Ej. Una lechuga tiene hojas amarillas en la base" class="w-full border-2 border-slate-200 dark:border-slate-600 dark:bg-slate-700 rounded-xl px-3 py-2 text-sm"></textarea>
+
+        <button onclick="submitChecklist()" class="w-full bg-usb-blue hover:bg-usb-dark text-white py-3 rounded-xl font-bold transition">📊 Generar Diagnóstico</button>
+      </div>
+    </div>`;
+}
+
+function updateHarvestPreview(pobCrecida){
+  const cosechadas = Math.max(0, parseInt($('cl-cosecha').value)||0);
+  const restante = Math.max(0, pobCrecida - cosechadas);
+  const previewEl = $('harvest-preview');
+  if(!previewEl) return;
+  const color = restante >= 4000 ? 'text-red-600' : restante >= 3000 ? 'text-amber-600' : 'text-emerald-600';
+  previewEl.innerHTML = `Al final de la semana quedarán <b class="${color}">${restante.toLocaleString()}</b> daphnias${cosechadas>0 ? ` <span class="text-slate-500">(cosechaste ${cosechadas.toLocaleString()})</span>` : ''}`;
+}
+
+function submitChecklist(){
+  const c = state.cicloActivo; if(!c || !c.activo) return;
+  const ec = parseFloat($('cl-ec').value)||1.4;
+  const temp = parseFloat($('cl-temp').value)||22;
+  const amarillas = parseInt($('cl-amarillas').value)||0;
+  const diasLimpieza = parseInt($('cl-dias-limpieza').value)||0;
+  const cosechadas = Math.max(0, parseInt($('cl-cosecha').value)||0);
+
+  // ✅ CORRECCIÓN CLAVE: usar poblacionActual (que refleja cosechas previas)
+  const pobAnterior = c.poblacionActual ?? c.poblacionInicial;
+  const pobCrecida = calcularPoblacionEstimada(pobAnterior, 7, c.capacidadCarga);
+  const poblacion = Math.max(0, pobCrecida - cosechadas);
+  c.poblacionActual = poblacion;
+
+  const ie = calcularIE(ec, c.ecIdeal||1.5, poblacion, c.plantas||[], c.semana);
+  const t = tareasSemanales(ie, poblacion, c.capacidadCarga, ec, c.ecIdeal||1.5, temp, diasLimpieza, amarillas);
+
+  const snapshot = {
+    semana: c.semana,
+    fecha: new Date().toISOString().split('T')[0],
+    ec, temp, poblacion, ie, cosechadas,
+    alertas: t.alertas, tareas: t.tareas,
+    observaciones: $('cl-obs').value
+  };
+  // Reemplazar si ya existe esa semana (seguridad)
+  state.historialSemanal = (state.historialSemanal||[]).filter(h=>h.semana!==c.semana);
+  state.historialSemanal.push(snapshot);
+  state.historialSemanal.sort((a,b)=>a.semana-b.semana);
+  c.semana++;
+  saveState();
+  toast(`Semana registrada ✅ · Población actual: ${poblacion.toLocaleString()}`, 'ok');
+  navigate('diagnostico');
+}
+
+/* ============================================================
+   DIAGNOSTICO
+============================================================ */
+function renderDiagnostico(){
+  const hist = (state.historialSemanal||[]).filter(h=>!h.esInicio);
+  if(hist.length===0){
+    $('main').innerHTML = `<div class="text-center py-20"><div class="text-6xl mb-4">🔍</div><p class="text-slate-500 mb-4">Aún no hay registros para diagnosticar.</p><button onclick="navigate('checklist')" class="bg-usb-blue text-white px-6 py-3 rounded-xl font-bold">Ir al Checklist</button></div>`;
+    return;
+  }
+  const ultimo = hist[hist.length-1];
+  const ieColor = ultimo.ie>=80?'emerald':ultimo.ie>=50?'amber':'red';
+  const ieText = ultimo.ie>=80?'Óptimo':ultimo.ie>=50?'Precaución':'Crítico';
+
+  let predHTML = '';
+  if(hist.length >= 3){
+    const ecos = hist.map(h=>h.ec);
+    const pend = regresionPendiente(ecos);
+    const predEC = Math.max(0, ultimo.ec + pend);
+    const c = state.cicloActivo;
+    const predPob = calcularPoblacionEstimada(c.poblacionActual ?? c.poblacionInicial, 7, c.capacidadCarga);
+    let riesgo = 'bajo', accion = 'Continuar mantenimiento normal.';
+    if(predEC < 1.0){ riesgo='alto'; accion='Déficit nutricional predicho. Preparar bolsas de té extra.'; }
+    else if(predPob >= 5000){ riesgo='alto'; accion='Colapso poblacional. Cosechar 50% obligatoriamente.'; }
+    else if(predEC < 1.2){ riesgo='medio'; accion='Déficit leve. Activar bypass 15 min cada 2 días.'; }
+
+    predHTML = `
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700">
+        <h3 class="font-bold mb-3">🔮 Predicción próxima semana</h3>
+        <div class="grid grid-cols-3 gap-3 mb-3">
+          <div><p class="text-xs text-slate-500">EC predicho</p><p class="text-xl font-bold">${predEC.toFixed(2)}</p></div>
+          <div><p class="text-xs text-slate-500">Población</p><p class="text-xl font-bold">${predPob.toLocaleString()}</p></div>
+          <div><p class="text-xs text-slate-500">Riesgo</p><p class="text-xl font-bold capitalize text-${riesgo==='alto'?'red':riesgo==='medio'?'amber':'emerald'}-500">${riesgo}</p></div>
+        </div>
+        <p class="text-sm bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3">💡 ${esc(accion)}</p>
+      </div>`;
+  }
+
+  $('main').innerHTML = `
+    <div class="fade-in space-y-4 max-w-3xl mx-auto">
+      <div class="rounded-2xl p-6 bg-gradient-to-br from-${ieColor}-500 to-${ieColor}-700 text-white shadow-lg">
+        <p class="text-sm text-white/80">Semana ${ultimo.semana} · ${ultimo.fecha}</p>
+        <h2 class="text-3xl font-black mt-1">${ultimo.ie}/100 · ${ieText}</h2>
+        <p class="text-sm text-white/80 mt-1">Índice de Equilibrio</p>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700"><p class="text-xs text-slate-500">Población</p><p class="text-xl font-bold text-usb-blue dark:text-usb-gold">${ultimo.poblacion.toLocaleString()}</p></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700"><p class="text-xs text-slate-500">Cosechadas</p><p class="text-xl font-bold text-rose-500">${(ultimo.cosechadas||0).toLocaleString()}</p></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700"><p class="text-xs text-slate-500">EC</p><p class="text-xl font-bold">${ultimo.ec.toFixed(2)}</p></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700"><p class="text-xs text-slate-500">T°</p><p class="text-xl font-bold">${ultimo.temp.toFixed(1)}°C</p></div>
+      </div>
+
+      ${ultimo.alertas?.length ? `
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border-2 border-red-300 dark:border-red-700">
+          <h3 class="font-bold text-red-600 dark:text-red-400 mb-2">⚠️ Alertas</h3>
+          <ul class="space-y-1 text-sm">${ultimo.alertas.map(a=>`<li>• ${esc(a)}</li>`).join('')}</ul>
+        </div>`:''}
+
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700">
+        <h3 class="font-bold mb-3">📝 Tareas para la próxima semana</h3>
+        <ul class="space-y-2 text-sm">${(ultimo.tareas||[]).map(t=>`<li class="bg-slate-50 dark:bg-slate-700/40 rounded-lg p-2">${esc(t)}</li>`).join('')}</ul>
+      </div>
+
+      ${predHTML}
+
+      <div class="text-center">
+        <button onclick="navigate('checklist')" class="text-sm text-usb-blue hover:underline">➕ Registrar nueva semana</button>
+      </div>
+    </div>`;
+}
+
+/* ============================================================
+   GUIA
+============================================================ */
+const GUIA_ITEMS = [
+  {q:'📖 ¿Qué es BioFlujo Daphnia?', a:'Es un sistema que integra un huerto hidropónico con un cultivo de Daphnia (pulga de agua). Las Daphnias transforman residuos orgánicos en nutrientes que alimentan las plantas. Tú lo monitoreas desde esta app.'},
+  {q:'🔬 ¿Cómo contar las Daphnias?', a:'Método de muestreo por alícuota:\n1. Homogeneiza el Tanque B.\n2. Toma una muestra de 10 mL.\n3. Cuenta las daphnias visibles.\n4. Total = Pulgas × (V_total / V_muestra).\n\nEjemplo: 25 pulgas en 10 mL de un tanque de 200 mL = 500 daphnias.'},
+  {q:'⚡ ¿Qué es el EC?', a:'Es la Conductividad Eléctrica del agua. Mide la concentración de nutrientes disueltos (sales). Rango ideal: 1.3 - 1.6 mS/cm para hidroponía. Si baja, las plantas tienen "hambre"; si sube, hay riesgo de toxicidad.'},
+  {q:'🥬 Catálogo de plantas', a:'Tenemos 9 especies compatibles: lechuga crespa, romana, espinaca, albahaca, rúcula, acelga, cilantro, menta y fresa. Cada una tiene requerimientos diferentes de pulgas, EC y ciclo de cosecha.'},
+  {q:'🦐 Cómo registrar tu cosecha', a:'En el Checklist Semanal hay una sección "Cosecha de Daphnias". Introduce cuántas cosechaste esa semana y el sistema restará esa cantidad de la población estimada. Sin esto, el modelo siempre crecerá hasta el máximo y aparecerá en rojo.'},
+  {q:'⚙️ Mantenimiento físico', a:'• Limpiar filtro de 100 micras cada 7 días.\n• Preparar agua verde (balde al sol).\n• Cosechar daphnias cuando lleguen al 60-80% de la capacidad (3,000-4,000).\n• Preparar bolsitas de té con daphnia seca para el bypass de nutrientes.'},
+  {q:'🚨 Solución de problemas', a:'• Plantas amarillas → déficit de N, activar bypass.\n• Agua huele mal → bacterias anaerobias, revisar oxigenación.\n• No veo pulgas → revisar T°, EC y alimentación.\n• Agua verde en tubos → algas por luz, cubrir con aislante.'},
+  {q:'📊 ¿Cómo leer mi diagnóstico?', a:'El Índice de Equilibrio (0-100) combina la producción de nutrientes (daphnias) con la demanda de las plantas y la calidad del EC. Verde ≥80 = todo bien. Amarillo 50-79 = ajustar. Rojo <50 = acción urgente.'}
+];
+
+function renderGuia(){
+  $('main').innerHTML = `
+    <div class="fade-in max-w-3xl mx-auto space-y-3">
+      <div class="rounded-2xl gradient-card text-white p-6 mb-2 shadow-lg">
+        <div class="text-4xl mb-2 float">📖</div>
+        <h2 class="text-2xl font-bold">Guía interactiva</h2>
+        <p class="text-sm text-white/80">Todo lo que necesitas saber para operar el sistema</p>
+      </div>
+      ${GUIA_ITEMS.map(it=>`
+        <details class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden group">
+          <summary class="cursor-pointer p-4 font-semibold flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/40 list-none">
+            <span>${esc(it.q)}</span>
+            <span class="text-slate-400 group-open:rotate-180 transition inline-block">▾</span>
+          </summary>
+          <div class="px-4 pb-4 text-sm whitespace-pre-line text-slate-600 dark:text-slate-300">${esc(it.a)}</div>
+        </details>
+      `).join('')}
+    </div>`;
+}
+
+/* ============================================================
+   HISTORIAL
+============================================================ */
+function renderHistorial(){
+  const hist = state.historialSemanal || [];
+  if(hist.length===0){
+    $('main').innerHTML = `<div class="text-center py-20"><div class="text-6xl mb-4">🗂️</div><p class="text-slate-500">Aún no hay registros.</p></div>`;
+    return;
+  }
+  $('main').innerHTML = `
+    <div class="fade-in max-w-3xl mx-auto space-y-3">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="font-bold">Registros del ciclo</h2>
+        <button onclick="exportCSV()" class="text-sm bg-usb-blue hover:bg-usb-dark text-white px-4 py-2 rounded-lg">⬇ Exportar CSV</button>
+      </div>
+      ${hist.map(h=>{
+        const ieColor = h.ie>=80?'emerald':h.ie>=50?'amber':'red';
+        return `<div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-100 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <p class="font-bold">${h.esInicio?'Inicio del ciclo':`Semana ${h.semana}`}</p>
+              <p class="text-xs text-slate-500">${h.fecha}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-2xl font-bold text-${ieColor}-500">${h.ie}</p>
+              <p class="text-[10px] text-slate-500">IE</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-4 gap-2 text-xs">
+            <div><p class="text-slate-500">Población</p><p class="font-bold">${h.poblacion.toLocaleString()}</p></div>
+            <div><p class="text-slate-500">Cosechadas</p><p class="font-bold">${(h.cosechadas||0).toLocaleString()}</p></div>
+            <div><p class="text-slate-500">EC</p><p class="font-bold">${h.ec.toFixed(2)}</p></div>
+            <div><p class="text-slate-500">T°</p><p class="font-bold">${h.temp.toFixed(1)}°C</p></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function exportCSV(){
+  const rows = [['semana','fecha','poblacion','cosechadas','ec','temp','ie','observaciones']];
+  (state.historialSemanal||[]).forEach(h=>{
+    rows.push([
+      h.esInicio?'inicio':h.semana,
+      h.fecha, h.poblacion, h.cosechadas||0, h.ec, h.temp, h.ie,
+      (h.observaciones||'').replace(/,/g,';')
+    ]);
+  });
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bioflujo_historial_${Date.now()}.csv`;
+  a.click();
+  toast('CSV descargado ✅','ok');
+}
+
+/* ============================================================
+   LOGOUT
+============================================================ */
+function logout(){
+  if(!confirm('¿Cerrar sesión? El historial quedará guardado para la próxima vez.')) return;
+  state.usuario = null;
+  saveState();
+  location.reload();
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+document.addEventListener('DOMContentLoaded', ()=>{
+  try{
+    if(state.usuario){
+      $('view-login').classList.add('hidden');
+      bootApp();
+    } else {
+      $('view-login').classList.remove('hidden');
+    }
+  }catch(err){
+    console.error('Boot error:', err);
+    $('view-login').classList.remove('hidden');
+  }
+});
+</script>
+</body>
+</html>
